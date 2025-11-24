@@ -35,3 +35,5 @@ jobs:
       - name: Apply K8s manifests PROD
         run: |
           kubectl apply -f infra/k8s/prod/
+
+
