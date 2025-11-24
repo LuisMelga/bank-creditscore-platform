@@ -1,0 +1,26 @@
+name: Deploy QA
+
+on:
+  push:
+    branches: ["qa"]
+
+jobs:
+  deploy-qa:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: AWS Auth (QA)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/github-qa-role
+          aws-region: us-east-1
+
+      - name: Update kubeconfig QA
+        run: |
+          aws eks update-kubeconfig --name creditscore-qa --region us-east-1
+
+      - name: Apply K8s manifests QA
+        run: |
+          kubectl apply -f infra/k8s/qa/

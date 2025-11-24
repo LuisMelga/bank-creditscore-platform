@@ -1,0 +1,67 @@
+name: CI DevSecOps
+
+on:
+  push:
+    branches: ["main", "develop", "qa", "uat", "prod"]
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+jobs:
+  build_security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          cd app/creditscore_service
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          cd app/creditscore_service
+          pytest -q
+
+      - name: Build Docker image
+        run: docker build -t creditscore:ci .
+
+      - name: Snyk SCA (deps)
+        uses: snyk/actions/python@v1
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: "--severity-threshold=medium"
+
+      - name: Snyk Code (SAST)
+        uses: snyk/actions/code@v1
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk IaC (Terraform/K8s)
+        uses: snyk/actions/iac@v1
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: "infra/"
+
+      - name: Snyk Container
+        uses: snyk/actions/docker@v1
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: creditscore:ci
+          command: test
+          args: "--severity-threshold=medium"
